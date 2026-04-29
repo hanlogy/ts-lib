@@ -46,12 +46,6 @@ export type HttpMethodRequestWithSchema<T> = HttpMethodRequest & {
   readonly schema: SchemaValidator<T>;
 };
 
-export type ResponseBodyFor<TReq> = TReq extends {
-  schema: SchemaValidator<infer T>;
-}
-  ? T
-  : unknown;
-
 export type HttpNext = (request: HttpRequest) => Promise<HttpResponse>;
 
 export interface HttpMiddleware {
@@ -59,24 +53,20 @@ export interface HttpMiddleware {
 }
 
 export interface HttpClient {
-  request<TReq extends HttpRequest>(
-    request: TReq,
-  ): Promise<HttpResponse<ResponseBodyFor<TReq>>>;
-  get<TReq extends HttpMethodRequest>(
-    request: TReq,
-  ): Promise<HttpResponse<ResponseBodyFor<TReq>>>;
-  post<TReq extends HttpMethodRequest>(
-    request: TReq,
-  ): Promise<HttpResponse<ResponseBodyFor<TReq>>>;
-  put<TReq extends HttpMethodRequest>(
-    request: TReq,
-  ): Promise<HttpResponse<ResponseBodyFor<TReq>>>;
-  patch<TReq extends HttpMethodRequest>(
-    request: TReq,
-  ): Promise<HttpResponse<ResponseBodyFor<TReq>>>;
-  delete<TReq extends HttpMethodRequest>(
-    request: TReq,
-  ): Promise<HttpResponse<ResponseBodyFor<TReq>>>;
+  request(request: HttpRequest): Promise<HttpResponse>;
+  request<T>(
+    request: HttpRequest & { readonly schema: SchemaValidator<T> },
+  ): Promise<HttpResponse<T>>;
+  get(request: HttpMethodRequest): Promise<HttpResponse>;
+  get<T>(request: HttpMethodRequestWithSchema<T>): Promise<HttpResponse<T>>;
+  post(request: HttpMethodRequest): Promise<HttpResponse>;
+  post<T>(request: HttpMethodRequestWithSchema<T>): Promise<HttpResponse<T>>;
+  put(request: HttpMethodRequest): Promise<HttpResponse>;
+  put<T>(request: HttpMethodRequestWithSchema<T>): Promise<HttpResponse<T>>;
+  patch(request: HttpMethodRequest): Promise<HttpResponse>;
+  patch<T>(request: HttpMethodRequestWithSchema<T>): Promise<HttpResponse<T>>;
+  delete(request: HttpMethodRequest): Promise<HttpResponse>;
+  delete<T>(request: HttpMethodRequestWithSchema<T>): Promise<HttpResponse<T>>;
 }
 
 export type HttpQuery = Readonly<Record<string, string | readonly string[]>>;
@@ -126,7 +116,7 @@ export type TransportResponse = Omit<HttpResponse, 'body'> & {
 
 export interface HttpTransport {
   // Allow swapping transport per environment (fetch, custom native, test mocks).
-  send(request: TransportRequest): Promise<TransportResponse>;
+  send: (request: TransportRequest) => Promise<TransportResponse>;
 }
 
 /**
