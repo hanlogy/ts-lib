@@ -8,6 +8,7 @@ import type {
   AbortSignalLike,
   HttpHeaders,
   HttpTransport,
+  SchemaValidator,
   TransportRequest,
   TransportResponse,
 } from '@/http/types';
@@ -120,11 +121,16 @@ describe('createHttpClient', () => {
       transport,
     });
 
-    const response = await client.post<{ ok: boolean }>({
+    const schema: SchemaValidator<{ ok: boolean }> = {
+      parse: (data) => data as { ok: boolean },
+    };
+
+    const response = await client.post({
       url: '/v1/test',
       query: { a: '1', b: ['x', 'y'] },
       headers: { 'Content-Type': 'application/json', 'X-Req': '2' },
       body: { hello: 'world' },
+      schema,
     });
 
     expect(response.body).toEqual({ ok: true });

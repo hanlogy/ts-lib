@@ -20,10 +20,10 @@
     "noImplicitOverride": true,
 
     "outDir": "dist",
-    "baseUrl": ".",
+    "types": ["jest", "node"],
     "paths": {
-      "@/test/*": ["test/*"],
-      "@/*": ["src/*"]
+      "@/test/*": ["./test/*"],
+      "@/*": ["./src/*"]
     }
   },
   "include": ["src", "test"],
