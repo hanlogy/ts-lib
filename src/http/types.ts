@@ -33,10 +33,24 @@ export interface HttpRequest {
   readonly body?: unknown;
   readonly query?: HttpQuery;
   readonly abortSignal?: AbortSignalLike;
-  readonly timeoutMs?: number;
+  readonly timeoutMs?: number | null;
 }
 
 export type HttpMethodRequest = Omit<HttpRequest, 'method'>;
+
+export interface SchemaValidator<T> {
+  parse: (data: unknown) => T;
+}
+
+export type HttpMethodRequestWithSchema<T> = HttpMethodRequest & {
+  readonly schema: SchemaValidator<T>;
+};
+
+export type ResponseBodyFor<TReq> = TReq extends {
+  schema: SchemaValidator<infer T>;
+}
+  ? T
+  : unknown;
 
 export type HttpNext = (request: HttpRequest) => Promise<HttpResponse>;
 
@@ -45,12 +59,24 @@ export interface HttpMiddleware {
 }
 
 export interface HttpClient {
-  request: <T>(request: HttpRequest) => Promise<HttpResponse<T>>;
-  get: <T>(request: HttpMethodRequest) => Promise<HttpResponse<T>>;
-  post: <T>(request: HttpMethodRequest) => Promise<HttpResponse<T>>;
-  put: <T>(request: HttpMethodRequest) => Promise<HttpResponse<T>>;
-  patch: <T>(request: HttpMethodRequest) => Promise<HttpResponse<T>>;
-  delete: (request: HttpMethodRequest) => Promise<HttpResponse>;
+  request<TReq extends HttpRequest>(
+    request: TReq,
+  ): Promise<HttpResponse<ResponseBodyFor<TReq>>>;
+  get<TReq extends HttpMethodRequest>(
+    request: TReq,
+  ): Promise<HttpResponse<ResponseBodyFor<TReq>>>;
+  post<TReq extends HttpMethodRequest>(
+    request: TReq,
+  ): Promise<HttpResponse<ResponseBodyFor<TReq>>>;
+  put<TReq extends HttpMethodRequest>(
+    request: TReq,
+  ): Promise<HttpResponse<ResponseBodyFor<TReq>>>;
+  patch<TReq extends HttpMethodRequest>(
+    request: TReq,
+  ): Promise<HttpResponse<ResponseBodyFor<TReq>>>;
+  delete<TReq extends HttpMethodRequest>(
+    request: TReq,
+  ): Promise<HttpResponse<ResponseBodyFor<TReq>>>;
 }
 
 export type HttpQuery = Readonly<Record<string, string | readonly string[]>>;

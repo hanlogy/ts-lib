@@ -16,11 +16,22 @@ import type {
   AbortSignalLike,
   HttpClient,
   HttpClientConfiguration,
+  HttpMethod,
   HttpMethodRequest,
   HttpRequest,
   HttpResponse,
+  ResponseBodyFor,
+  SchemaValidator,
   TransportBodyInit,
 } from './types';
+
+type RequestWithOptionalSchema = HttpRequest & {
+  schema?: SchemaValidator<unknown>;
+};
+
+type MethodRequestWithOptionalSchema = HttpMethodRequest & {
+  schema?: SchemaValidator<unknown>;
+};
 
 export function createHttpClient({
   baseUrl = '',
@@ -43,7 +54,8 @@ export function createHttpClient({
       ...normalizeHeaders(defaultHeaders),
       ...normalizeHeaders(request.headers),
     };
-    const effectiveTimeoutMs = request.timeoutMs ?? defaultTimeoutMs;
+    const effectiveTimeoutMs =
+      request.timeoutMs !== undefined ? request.timeoutMs ?? undefined : defaultTimeoutMs;
 
     const abortSetup = createAbortSetup({
       upstreamAbortSignal: request.abortSignal,
@@ -146,33 +158,64 @@ export function createHttpClient({
   }
 
   const handler = composeMiddlewares(middlewares, (request) =>
-    sendRequest<unknown>(request),
+    sendRequest(request),
   );
 
+  // Overload 1: method-less request — caller provides the HTTP method separately.
+  // Overload 2: full request — method is already included.
+  // Single implementation body handles both; the two `as` casts here are the only
+  // ones in the file — they cover the gap between the generic TReq shape and the
+  // concrete HttpRequest that the transport expects.
+  function makeRequest<TReq extends MethodRequestWithOptionalSchema>(
+    req: TReq,
+    method: HttpMethod,
+  ): Promise<HttpResponse<ResponseBodyFor<TReq>>>;
+  function makeRequest<TReq extends RequestWithOptionalSchema>(
+    req: TReq,
+  ): Promise<HttpResponse<ResponseBodyFor<TReq>>>;
+  async function makeRequest(
+    req: MethodRequestWithOptionalSchema | RequestWithOptionalSchema,
+    method?: HttpMethod,
+  ): Promise<HttpResponse> {
+    const { schema, ...rest } = req as RequestWithOptionalSchema;
+    const httpRequest: HttpRequest =
+      method != null ? { ...rest, method } : (rest as HttpRequest);
+    const response = await handler(httpRequest);
+    return schema != null
+      ? { ...response, body: schema.parse(response.body) }
+      : response;
+  }
+
   return {
-    async request<TBody>(request: HttpRequest): Promise<HttpResponse<TBody>> {
-      const response = await handler(request);
-      return response as HttpResponse<TBody>;
+    request<TReq extends HttpRequest>(
+      req: TReq,
+    ): Promise<HttpResponse<ResponseBodyFor<TReq>>> {
+      return makeRequest(req);
     },
-
-    get<TBody>(request: HttpMethodRequest): Promise<HttpResponse<TBody>> {
-      return this.request<TBody>({ ...request, method: 'GET' });
+    get<TReq extends HttpMethodRequest>(
+      req: TReq,
+    ): Promise<HttpResponse<ResponseBodyFor<TReq>>> {
+      return makeRequest(req, 'GET');
     },
-
-    post<TBody>(request: HttpMethodRequest): Promise<HttpResponse<TBody>> {
-      return this.request<TBody>({ ...request, method: 'POST' });
+    post<TReq extends HttpMethodRequest>(
+      req: TReq,
+    ): Promise<HttpResponse<ResponseBodyFor<TReq>>> {
+      return makeRequest(req, 'POST');
     },
-
-    put<TBody>(request: HttpMethodRequest): Promise<HttpResponse<TBody>> {
-      return this.request<TBody>({ ...request, method: 'PUT' });
+    put<TReq extends HttpMethodRequest>(
+      req: TReq,
+    ): Promise<HttpResponse<ResponseBodyFor<TReq>>> {
+      return makeRequest(req, 'PUT');
     },
-
-    patch<TBody>(request: HttpMethodRequest): Promise<HttpResponse<TBody>> {
-      return this.request<TBody>({ ...request, method: 'PATCH' });
+    patch<TReq extends HttpMethodRequest>(
+      req: TReq,
+    ): Promise<HttpResponse<ResponseBodyFor<TReq>>> {
+      return makeRequest(req, 'PATCH');
     },
-
-    delete(request: HttpMethodRequest): Promise<HttpResponse> {
-      return this.request({ ...request, method: 'DELETE' });
+    delete<TReq extends HttpMethodRequest>(
+      req: TReq,
+    ): Promise<HttpResponse<ResponseBodyFor<TReq>>> {
+      return makeRequest(req, 'DELETE');
     },
   };
 }
