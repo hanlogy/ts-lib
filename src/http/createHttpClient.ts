@@ -20,7 +20,6 @@ import type {
   HttpMethodRequest,
   HttpRequest,
   HttpResponse,
-  ResponseBodyFor,
   SchemaValidator,
   TransportBodyInit,
 } from './types';
@@ -55,7 +54,9 @@ export function createHttpClient({
       ...normalizeHeaders(request.headers),
     };
     const effectiveTimeoutMs =
-      request.timeoutMs !== undefined ? request.timeoutMs ?? undefined : defaultTimeoutMs;
+      request.timeoutMs !== undefined
+        ? (request.timeoutMs ?? undefined)
+        : defaultTimeoutMs;
 
     const abortSetup = createAbortSetup({
       upstreamAbortSignal: request.abortSignal,
@@ -161,18 +162,6 @@ export function createHttpClient({
     sendRequest(request),
   );
 
-  // Overload 1: method-less request — caller provides the HTTP method separately.
-  // Overload 2: full request — method is already included.
-  // Single implementation body handles both; the two `as` casts here are the only
-  // ones in the file — they cover the gap between the generic TReq shape and the
-  // concrete HttpRequest that the transport expects.
-  function makeRequest<TReq extends MethodRequestWithOptionalSchema>(
-    req: TReq,
-    method: HttpMethod,
-  ): Promise<HttpResponse<ResponseBodyFor<TReq>>>;
-  function makeRequest<TReq extends RequestWithOptionalSchema>(
-    req: TReq,
-  ): Promise<HttpResponse<ResponseBodyFor<TReq>>>;
   async function makeRequest(
     req: MethodRequestWithOptionalSchema | RequestWithOptionalSchema,
     method?: HttpMethod,
@@ -187,37 +176,14 @@ export function createHttpClient({
   }
 
   return {
-    request<TReq extends HttpRequest>(
-      req: TReq,
-    ): Promise<HttpResponse<ResponseBodyFor<TReq>>> {
-      return makeRequest(req);
-    },
-    get<TReq extends HttpMethodRequest>(
-      req: TReq,
-    ): Promise<HttpResponse<ResponseBodyFor<TReq>>> {
-      return makeRequest(req, 'GET');
-    },
-    post<TReq extends HttpMethodRequest>(
-      req: TReq,
-    ): Promise<HttpResponse<ResponseBodyFor<TReq>>> {
-      return makeRequest(req, 'POST');
-    },
-    put<TReq extends HttpMethodRequest>(
-      req: TReq,
-    ): Promise<HttpResponse<ResponseBodyFor<TReq>>> {
-      return makeRequest(req, 'PUT');
-    },
-    patch<TReq extends HttpMethodRequest>(
-      req: TReq,
-    ): Promise<HttpResponse<ResponseBodyFor<TReq>>> {
-      return makeRequest(req, 'PATCH');
-    },
-    delete<TReq extends HttpMethodRequest>(
-      req: TReq,
-    ): Promise<HttpResponse<ResponseBodyFor<TReq>>> {
-      return makeRequest(req, 'DELETE');
-    },
-  };
+    request: (req: RequestWithOptionalSchema) => makeRequest(req),
+    get: (req: MethodRequestWithOptionalSchema) => makeRequest(req, 'GET'),
+    post: (req: MethodRequestWithOptionalSchema) => makeRequest(req, 'POST'),
+    put: (req: MethodRequestWithOptionalSchema) => makeRequest(req, 'PUT'),
+    patch: (req: MethodRequestWithOptionalSchema) => makeRequest(req, 'PATCH'),
+    delete: (req: MethodRequestWithOptionalSchema) =>
+      makeRequest(req, 'DELETE'),
+  } as HttpClient;
 }
 
 function isAbortSignalAborted(signal: AbortSignalLike | undefined): boolean {

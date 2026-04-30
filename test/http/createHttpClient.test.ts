@@ -90,7 +90,10 @@ function createJsonResponse(body: unknown): TransportResponse {
 }
 
 describe('createHttpClient', () => {
-  const originalAbortController = Reflect.get(globalThis, 'AbortController');
+  const originalAbortController: unknown = Reflect.get(
+    globalThis,
+    'AbortController',
+  );
 
   beforeEach(() => {
     Reflect.set(globalThis, 'AbortController', TestAbortController);

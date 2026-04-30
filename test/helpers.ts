@@ -1,4 +1,4 @@
-import { DateInput } from '@/types';
+import type { DateInput } from '@/types';
 import { toDate } from '@/utils/date';
 
 export const fakeSystemTime = (time: DateInput): void => {

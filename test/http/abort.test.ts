@@ -44,7 +44,9 @@ function hangingTransport(
     send: jest.fn(async (req: TransportRequest) => {
       onRequest?.(req);
       return new Promise<TransportResponse>((_resolve, reject) => {
-        const onAbort = (): void => reject(new Error('aborted'));
+        const onAbort = (): void => {
+          reject(new Error('aborted'));
+        };
         if (req.abortSignal?.aborted === true) {
           onAbort();
           return;
@@ -56,7 +58,10 @@ function hangingTransport(
 }
 
 describe('abort and timeout', () => {
-  const originalAbortController = Reflect.get(globalThis, 'AbortController');
+  const originalAbortController: unknown = Reflect.get(
+    globalThis,
+    'AbortController',
+  );
 
   beforeEach(() => {
     Reflect.set(globalThis, 'AbortController', TestAbortController);
